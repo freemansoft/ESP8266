@@ -12,7 +12,24 @@ Simple example that provides web based interface for relay control. This was bil
 
 This device is totally **insecure** with no passwords or or DDOS protection
 
+### Hardware ###
+
+* ESP-87266EX
+* 5V pDC power jack
+* 1 5V DC port for power/configuration (?)
+* 1 Digital/IO Relay
+* 6 Digital I/O pins
+* 1 Analog Input pin
+
+### Programming ###
+
+* [Arduino IDE](https://github.com/esp8266/Arduino)
+* [NodeMCU] (https://en.wikipedia.org/wiki/NodeMCU) Lua based
+* [Platform I/O](https://platformio.org/platforms/espressif8266)
+* OTA wireless upload
+
+
 ### Shortcomings ###
 
-1) Does not work on WPA-2 Enterprise wireless networks.
+1) Does not work on WPA2 Enterprise wireless networks.
 1) There is no way to _forget_ a configured network to bring back the AP
