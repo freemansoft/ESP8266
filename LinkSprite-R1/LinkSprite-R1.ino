@@ -34,9 +34,9 @@ const char INDEX_HTML[] =
   "<h1>ESP8266 LinkNode R1 Relay Web Form Demo</h1>"
   "<FORM action=\"/\" method=\"post\">"
   "<P>"
-  "LED<br>"
-  "<INPUT type=\"radio\" name=\"LED\" value=\"1\">On<BR>"
-  "<INPUT type=\"radio\" name=\"LED\" value=\"0\">Off<BR>"
+  "RELAY<br>"
+  "<INPUT type=\"radio\" name=\"RELAY\" value=\"1\">On<BR>"
+  "<INPUT type=\"radio\" name=\"RELAY\" value=\"0\">Off<BR>"
   "<INPUT type=\"submit\" value=\"Send\"> <INPUT type=\"reset\">"
   "</P>"
   "</FORM>"
@@ -48,7 +48,7 @@ const char INDEX_HTML[] =
 
 void handleRoot()
 {
-  if (server.hasArg("LED")) {
+  if (server.hasArg("RELAY")) {
     handleSubmit();
   }
   else {
@@ -65,20 +65,20 @@ void returnFail(String msg)
 
 void handleSubmit()
 {
-  String LEDvalue;
+  String RELAYvalue;
 
-  if (!server.hasArg("LED")) return returnFail("BAD ARGS");
-  LEDvalue = server.arg("LED");
-  if (LEDvalue == "1") {
+  if (!server.hasArg("RELAY")) return returnFail("BAD ARGS");
+  RELAYvalue = server.arg("RELAY");
+  if (RELAYvalue == "1") {
     writeRelay(true);
     server.send(200, "text/html", INDEX_HTML);
   }
-  else if (LEDvalue == "0") {
+  else if (RELAYvalue == "0") {
     writeRelay(false);
     server.send(200, "text/html", INDEX_HTML);
   }
   else {
-    returnFail("Bad LED value");
+    returnFail("Bad RELAY value");
   }
 }
 
@@ -93,7 +93,7 @@ void returnOK()
 }
 
 /*
- * Imperative to turn the LED on using a non-browser http client.
+ * Imperative to turn the RELAY on using a non-browser http client.
  * For example, using wget.
  * $ wget http://LOCAL_DNS_NAME/relayon
  */
@@ -104,7 +104,7 @@ void handleRelayOn()
 }
 
 /*
- * Imperative to turn the LED off using a non-browser http client.
+ * Imperative to turn the RELAY off using a non-browser http client.
  * For example, using wget.
  * $ wget http://LOCAL_DNS_NAME/relayoff
  */
