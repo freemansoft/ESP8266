@@ -1,9 +1,18 @@
 #include <ESP8266WiFi.h>          //ESP8266 Core WiFi Library (you most likely already have this in your sketch)
-#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266mDNS.h>          // So we can have $LOCAL_DNS_NAME.local
                                   // web server code from https://gist.github.com/bbx10/5a2885a700f30af75fc5
+#define ENABLE_HTTP_UPDATE
+
+#ifdef ENABLE_OTA
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+#endif
+
+#ifdef ENABLE_HTTP_UPDATE
+#include <ESP8266HTTPUpdateServer.h>
+#endif
 
 /**
  * This program was put together to exercise the LinkNode R1 as a web endpoint.
@@ -17,7 +26,14 @@
 const int RELAY_PIN = 16;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
-const char LOCAL_DNS_NAME[] = "esp8266-linksprite";
+String ssid = "ESP8266-" + String(ESP.getChipId());
+
+#ifdef ENABLE_HTTP_UPDATE
+ESP8266HTTPUpdateServer  httpUpdater;
+const char* update_path = "/update";
+const char* update_username = "admin";
+const char* update_password = "password";
+#endif
 
 
 const char INDEX_HTML[] =
@@ -31,17 +47,18 @@ const char INDEX_HTML[] =
   "</style>"
   "</head>"
   "<body>"
-  "<h1>ESP8266 LinkNode R1 Relay Web Form Demo</h1>"
+  "<h1>ESP8266 LinkNode R1 Demo</h1>"
   "<FORM action=\"/\" method=\"post\">"
   "<P>"
-  "RELAY<br>"
-  "<INPUT type=\"radio\" name=\"RELAY\" value=\"1\">On<BR>"
-  "<INPUT type=\"radio\" name=\"RELAY\" value=\"0\">Off<BR>"
+  "<INPUT type=\"radio\" name=\"RELAY\" value=\"1\">Relay On<BR>"
+  "<INPUT type=\"radio\" name=\"RELAY\" value=\"0\">Relay Off<BR>"
   "<INPUT type=\"submit\" value=\"Send\"> <INPUT type=\"reset\">"
   "</P>"
   "</FORM>"
-  "<br><br>Change relay status directly: "
-  "<a href='/relayoff'>Turn off relay</a> or <a href='/relayon'>Turn on relay</a>"
+  "<br><br>Direct: <a href='/relayoff'>Relay Off</a> or <a href='/relayon'>Relay On</a>"
+#ifdef ENABLE_HTTP_UPDATE
+  "<br>Update firmware: <a href='/update'>via upload</a>"
+#endif
   "</body>"
   "</html>";
 
@@ -89,7 +106,10 @@ void returnOK()
 {
   server.sendHeader("Connection", "close");
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "text/plain", "OK\r\n");
+  // return to the same page
+  server.send(200, "text/html", INDEX_HTML);
+  // or just return the word "OK"
+  //server.send(200, "text/plain", "OK\r\n");
 }
 
 /*
@@ -143,56 +163,87 @@ void writeRelay(bool RelayOn)
  */
 void setup()
 {
-    String s;
     Serial.begin(115200);
     pinMode(RELAY_PIN, OUTPUT);
     writeRelay(false);
 
-    //https://github.com/tzapu/WiFiManager/blob/master/examples/AutoConnect/AutoConnect.ino
-    //WiFiManager
-    //Local intialization. Once its business is done, there is no need to keep it around
+    // https://github.com/tzapu/WiFiManager/blob/master/examples/AutoConnect/AutoConnect.ino
+    // WiFiManager
+    // Local intialization. Once its business is done, there is no need to keep it around
     WiFiManager wifiManager;
-
-    //reset saved settings - good for development
-    //can't stay active though because it will erase settings causing reboot to AP.
+    // this will remove the saved wifi settings - good for development
+    // can't stay active though because it will erase settings causing reboot to AP.
     //wifiManager.resetSettings();
-    
-    //set custom ip for portal
+    // set custom ip for portal
     //wifiManager.setAPStaticIPConfig(IPAddress(10,0,1,1), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
 
-    //Fetches ssid and pass from eeprom and tries to connect
-    //if it does not connect it starts an access point with the specified name here
-    //"ESP8266AutoConfigAP" and goes into a blocking loop awaiting configuration
-    wifiManager.autoConnect("ESP8266AutoConfigAP");
-    //or use this for auto generated name ESP + ChipID
-    //wifiManager.autoConnect();
+    // Fetches SSID and password from eeprom and tries to connect
+    // if it does not connect it starts an access point with the SSID specified here
+    // and goes into a blocking loop awaiting configuration
+    //wifiManager.autoConnect("ESP8266AutoConfigAP");
+    // or use this for auto generated name ESP + ChipID
+    wifiManager.autoConnect();
 
     
-    //if you get here you have connected to the WiFi
+    // if you get here you have connected to the WiFi
     Serial.println("");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
-  
-    if (mdns.begin(LOCAL_DNS_NAME, WiFi.localIP())) {
-      Serial.println("MDNS responder started");
+
+    // register ourselves in dynamic dns under this name.  say "bonjour"
+    if (mdns.begin(ssid.c_str(), WiFi.localIP())) {
+      Serial.println("MDNS responder started: "+ssid);
     }
-  
+
     server.on("/", handleRoot);
     server.on("/relayon", handleRelayOn);
     server.on("/relayoff", handleRelayOff);
     server.onNotFound(handleNotFound);
-  
+
+#ifdef ENABLE_HTTP_UPDATE
+    httpUpdater.setup(&server,update_path, update_username, update_password);
+#endif
     server.begin();
-    Serial.print("Connect to http://");
-    Serial.print(LOCAL_DNS_NAME);
-    Serial.print(".local or http://");
-    Serial.println(WiFi.localIP()); 
-    Serial.println("Form entry available with GET on /");
-    Serial.print("Direct links ");
-    Serial.print("Turn off Relay /relayoff or Turn on relay");
+    String url = "http://"+ssid+".local";
+    Serial.println(url+" or http://"+ WiFi.localIP()); 
+    Serial.println("Relay Form: "+url+"/ ");
+    Serial.println("Direct links: "+url+"/relayoff - "+url+"/relayon");
+#ifdef ENABLE_HTTP_UPDATE
+    Serial.println("Updates "+url+"/update");
+    Serial.print("User:");
+    Serial.print(update_username);
+    Serial.print(" Pw:");
+    Serial.println(update_password);
+#endif
+
+#ifdef ENABLE_OTA
+    // Start ota
+    ArduinoOTA.onStart([]() {
+      Serial.println("Start OTA");
+    });
+    ArduinoOTA.onEnd([]() {
+      Serial.println("\nEnd OTA");
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("OTA Progress: %u%%\r", (progress / (total / 100)));
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+    ArduinoOTA.begin();
+    Serial.println("OTA enabled");  
+#endif
 }
 
 void loop()
 { 
-    server.handleClient(); 
+    server.handleClient();
+#ifdef ENABLE_OTA
+    ArduinoOTA.handle();
+#endif
 }
