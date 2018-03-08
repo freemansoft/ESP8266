@@ -15,7 +15,9 @@ ESP8266 based single relay board [found at Microcenter](http://www.microcenter.c
 
 ### Security ###
 
-This device is totally **insecure** with no passwords or or DDOS protection
+The relay control portion of this program is totally **insecure** with no passwords or or DDOS protection
+The firmware update feature ( on /update ) is super
+secure with username: _admin_ and password: _password_
 
 ### Hardware ###
 
@@ -82,7 +84,8 @@ Short form instructions
 * [Arduino IDE](https://github.com/esp8266/Arduino)
 * [NodeMCU](https://en.wikipedia.org/wiki/NodeMCU) Lua based
 * [Platform I/O](https://platformio.org/platforms/espressif8266)
-* OTA wireless upload
+* OTA wireless upload from Arduino not supported
+* OTA wireless upload of .ino.bin via HTTP supporte on /update url
 
 ### Programming weirdness ###
 * The default serial monitor prior to programming runs 74880 bps. I found that in some situations I had to go back to that speed.
@@ -90,7 +93,7 @@ Short form instructions
 * Remember to move the pgm/run jumper to the correct position.
 * I had to unplug/plg the power to get to reliably switch between _program_ and _run_
 * The upload speed was 115200.
-* I found compilation slow on my Windows 10 machine. Dispabling Windows Defender for the compilation folders sped up the operation
+* Compilation slow on my Windows 10 machine. Dispabling Windows Defender for the compilation folders sped up the operation
 
 ### Usage ###
 First time on a new network.
@@ -103,9 +106,9 @@ First time on a new network.
     1) Enter the name of your local network and it spassword. The ESP8266 wil restart and join to that network: LinkSprite...
 1) The esp8266 wil automatically restart and join the configured network.
 1) Re-connect your mobile dvice to the legacy network.
-1) Open a web broser and connect to http://esp8266-linksprite.local
+1) Open a web broser and connect to http://esp8266-\<chipId\>.local
 
 After the first time on a new network
 1) Power up the LinkSprite ESP8266 device
-1) Open your browser to http://esp8266-linksprite.local
+1) Open your browser to http://esp8266-\<chipId\>.local
 
