@@ -67,15 +67,22 @@ Short form instructions
     1) Tools-->board
     1) Scroll down to you find your board and select it.  The LinkSprite-R1/4 have the same profile as the _WeMos D1(Retired)_. Note that this entry appears through version 2.3.0.
 1) Add extended / non-bundled libraries used in this program
+    1) Sketch --> include libraries --> Manage Libraries
     1) Add wifi manager to the set of installed libraries.  It can be found at https://github.com/tzapu/WiFiManager
-        1) Sketch --> include libraries --> Manage Libraries
         1) Find the WifiManager. 
             * Type in _wifimanager_
         1) Find the entry by "tzapu"
         1) Click install 
-            * I accepted library version0.12 as of 2/33/2018
+            * I accepted library version 0.12 as of 2/33/2018
             * This will install the WifiManger package on your machine
-        1) Close the library manager
+    1) Add the Over The Air library
+        1) Find the ArduinOta. 
+            * Type in _arduinoota_
+        1) Find the entry by "Grokhotkov" and "Ajo"
+        1) Click install 
+            * I accepted library version 1.0.0 as of 2/33/2018
+            * This will install the WifiManger package on your machine
+1) Close the library manager
 1) Build this program and Test
     1) the project should now build and run
 
