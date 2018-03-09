@@ -4,6 +4,7 @@
 #include <ESP8266mDNS.h>          // So we can have $LOCAL_DNS_NAME.local
                                   // web server code from https://gist.github.com/bbx10/5a2885a700f30af75fc5
 #define ENABLE_HTTP_UPDATE
+#define  ENABLE_OTA
 
 #ifdef ENABLE_OTA
 #include <WiFiUdp.h>
@@ -201,6 +202,7 @@ void setup()
     server.onNotFound(handleNotFound);
 
 #ifdef ENABLE_HTTP_UPDATE
+    // add the httpUpdater endpoints to the http server
     httpUpdater.setup(&server,update_path, update_username, update_password);
 #endif
     server.begin();
@@ -225,7 +227,7 @@ void setup()
       Serial.println("\nEnd OTA");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("OTA Progress: %u%%\r", (progress / (total / 100)));
+      Serial.printf(" OTA:%u%%\r", (progress / (total / 100)));
     });
     ArduinoOTA.onError([](ota_error_t error) {
       Serial.printf("Error[%u]: ", error);

@@ -112,3 +112,20 @@ After the first time on a new network
 1) Power up the LinkSprite ESP8266 device
 1) Open your browser to http://esp8266-\<chipId\>.local
 
+### OTA Programming
+#### HTTP Form Upload ####
+Can use the http web page _http://esp-8266-\<chipId\>.local/update_
+
+#### Python Upload ####
+I couldn't get the IDE to recognize the device and make it show up in the port menu. I could do direct upload via the command line.
+
+These examples assume the ESP8266 board is named _esp8266-2253881.local_ and that the project name is _LinkSprite-R1.ino.bin_
+
+| Platform | Command |
+|-----|-----|
+| General |  python \<path\>/espota.py -i \<device-dns-name\> -f \<project-path>/\<project\>.ino.bin |
+| Mac | python Users/joefreeman/Library/Arduino15/packages/esp8266/hardware/esp8266/2.3.0/tools/espota.py -i esp8266-2253881.local -f /var/folders/j9/x_01h_yx26l0v7x1sffsvr440000gn/T/arduino_build_439217/LinkSprite-R1.ino.bin |
+| PC | python C:\\Users\\joe\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\2.3.0\\tools\\espota.py -i esp8266-2253881.local -f C:\Users\joe\AppData\Local\Temp\arduino_build_471516\LinkSprite-R1.ino.bin |
+
+### Notes ###
+Intentionally left blank.
