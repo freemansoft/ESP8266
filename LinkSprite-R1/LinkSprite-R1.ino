@@ -28,13 +28,14 @@ const int RELAY_PIN = 16;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
 String ssid = "ESP8266-" + String(ESP.getChipId());
-
 #ifdef ENABLE_HTTP_UPDATE
 ESP8266HTTPUpdateServer  httpUpdater;
 const char* update_path = "/update";
-const char* update_username = "admin";
-const char* update_password = "password";
 #endif
+// used by both the http and OTA updaters
+const char* update_username = "admin";
+String password = String(ESP.getChipId());
+const char* update_password = password.c_str();
 
 
 const char INDEX_HTML[] =
@@ -159,15 +160,7 @@ void writeRelay(bool RelayOn)
     digitalWrite(RELAY_PIN, 0);
 }
 
-/**
- * This call back happens when network join fails and we fall into soft AP
- */
-void setup()
-{
-    Serial.begin(115200);
-    pinMode(RELAY_PIN, OUTPUT);
-    writeRelay(false);
-
+void runWiFiManager(){
     // https://github.com/tzapu/WiFiManager/blob/master/examples/AutoConnect/AutoConnect.ino
     // WiFiManager
     // Local intialization. Once its business is done, there is no need to keep it around
@@ -184,50 +177,53 @@ void setup()
     //wifiManager.autoConnect("ESP8266AutoConfigAP");
     // or use this for auto generated name ESP + ChipID
     wifiManager.autoConnect();
-
     
     // if you get here you have connected to the WiFi
-    Serial.println("");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
+    Serial.println("WiFi connected: "+WiFi.localIP().toString());  
 
     // register ourselves in dynamic dns under this name.  say "bonjour"
     if (mdns.begin(ssid.c_str(), WiFi.localIP())) {
       Serial.println("MDNS responder started: "+ssid);
     }
+}
 
+/**
+ * Prepare the web server to handle requests
+ */
+void configureWebServer(String url){
     server.on("/", handleRoot);
     server.on("/relayon", handleRelayOn);
     server.on("/relayoff", handleRelayOff);
     server.onNotFound(handleNotFound);
+    Serial.println("Web server enabled: "+url+" or http://"+WiFi.localIP().toString()); 
+    Serial.println("Relay Form: "+url+"/");
+    Serial.println("GET "+url+"/relayoff");
+    Serial.println("GET "+url+"/relayon");
 
-#ifdef ENABLE_HTTP_UPDATE
-    // add the httpUpdater endpoints to the http server
+}
+
+/**
+ * add the httpUpdater endpoints to the http server
+ */
+void configureWebUpdate(String url){
     httpUpdater.setup(&server,update_path, update_username, update_password);
-#endif
-    server.begin();
-    String url = "http://"+ssid+".local";
-    Serial.println(url+" or http://"+ WiFi.localIP()); 
-    Serial.println("Relay Form: "+url+"/ ");
-    Serial.println("Direct links: "+url+"/relayoff - "+url+"/relayon");
-#ifdef ENABLE_HTTP_UPDATE
-    Serial.println("Updates "+url+"/update");
-    Serial.print("User:");
-    Serial.print(update_username);
-    Serial.print(" Pw:");
-    Serial.println(update_password);
-#endif
+    Serial.printf("Web update enabled %s User:%s Pw:%s\r\n", url.c_str(), update_username, update_password);
+}
 
-#ifdef ENABLE_OTA
-    // Start ota
+/**
+ * Configure direct upload OTA
+ */
+void enableOTA(){
+    ArduinoOTA.setPassword(update_password);
+    // event handlers
     ArduinoOTA.onStart([]() {
-      Serial.println("Start OTA");
+      Serial.print("Start OTA:");
     });
     ArduinoOTA.onEnd([]() {
-      Serial.println("\nEnd OTA");
+      Serial.println(":End OTA");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf(" OTA:%u%%\r", (progress / (total / 100)));
+      Serial.print(".");
     });
     ArduinoOTA.onError([](ota_error_t error) {
       Serial.printf("Error[%u]: ", error);
@@ -239,8 +235,29 @@ void setup()
     });
     ArduinoOTA.begin();
     Serial.println("OTA enabled");  
+}
+
+/**
+ * This call back happens when network join fails and we fall into soft AP
+ */
+void setup()
+{
+    Serial.begin(115200);
+    pinMode(RELAY_PIN, OUTPUT);
+    writeRelay(false);
+
+    runWiFiManager();
+    String url = "http://"+ssid+".local";
+    configureWebServer(url);
+#ifdef ENABLE_HTTP_UPDATE
+    configureWebUpdate(url);
+#endif
+    server.begin();
+#ifdef ENABLE_OTA
+    enableOTA();
 #endif
 }
+
 
 void loop()
 { 
