@@ -59,20 +59,24 @@ const char INDEX_HTML[] =
   "<P>Or Click to <a href='/relayoff'>Turn Relay Off</a> or <a href='/relayon'>Turn Relay On</a></P>"
   ;
 
+// string built this way so it is never an empty string
 const char INDEX_HTTP_UPDATE_LINK[] =
-  ""
+  "<P>"
 #ifdef ENABLE_HTTP_UPDATE
-  "<P>Authorized users can <a href='/update'>click here</a> update firmware</P>"
+  "Authorized users can <a href='/update'>click here</a> update firmware"
 #endif
+  "</P>"
   ;
 
+// should this have its own <p></p>?
 const char INDEX_BUILDINFO[] = 
   "Software Built: "
   __DATE__
   " "
   __TIME__
   ;
-  
+
+// let's end this!
 const char INDEX_FOOTER[] =
   "</body>"
   "</html>";
