@@ -1,18 +1,15 @@
-#include <ESP8266WiFi.h>          //ESP8266 Core WiFi Library (you most likely already have this in your sketch)
+  #define ENABLE_HTTP_UPDATE
+#define ENABLE_OTA
+
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266mDNS.h>          // So we can have $LOCAL_DNS_NAME.local
                                   // web server code from https://gist.github.com/bbx10/5a2885a700f30af75fc5
-#define ENABLE_HTTP_UPDATE
-#define  ENABLE_OTA
-
 #ifdef ENABLE_OTA
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
+  #include <ArduinoOTA.h>
 #endif
-
 #ifdef ENABLE_HTTP_UPDATE
-#include <ESP8266HTTPUpdateServer.h>
+  #include <ESP8266HTTPUpdateServer.h>
 #endif
 
 /**
@@ -28,14 +25,16 @@ const int RELAY_PIN = 16;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
 String ssid = "ESP8266-" + String(ESP.getChipId());
-#ifdef ENABLE_HTTP_UPDATE
-ESP8266HTTPUpdateServer  httpUpdater;
-const char* update_path = "/update";
+#if defined(ENABLE_HTTP_UPDATE) || defined(ENABLE_OTA)
+  // used by both the http and OTA updaters
+  String password = String(ESP.getChipId());
+  const char* update_username = "admin";
+  const char* update_password = password.c_str();
 #endif
-// used by both the http and OTA updaters
-const char* update_username = "admin";
-String password = String(ESP.getChipId());
-const char* update_password = password.c_str();
+#if defined(ENABLE_HTTP_UPDATE)
+  ESP8266HTTPUpdateServer  httpUpdater;
+  const char* update_path = "/update";
+#endif
 
 
 const char INDEX_HTML[] =
@@ -71,7 +70,7 @@ void handleRoot()
     handleSubmit();
   }
   else {
-    server.send(200, "text/html", INDEX_HTML);
+    returnOK();
   }
 }
 
@@ -86,18 +85,20 @@ void handleSubmit()
 {
   String RELAYvalue;
 
-  if (!server.hasArg("RELAY")) return returnFail("BAD ARGS");
+  if (!server.hasArg("RELAY")) {
+    return returnFail("BAD ARGS");
+  }
   RELAYvalue = server.arg("RELAY");
   if (RELAYvalue == "1") {
     writeRelay(true);
-    server.send(200, "text/html", INDEX_HTML);
+    returnOK();
   }
   else if (RELAYvalue == "0") {
     writeRelay(false);
-    server.send(200, "text/html", INDEX_HTML);
+    returnOK();
   }
   else {
-    returnFail("Bad RELAY value");
+    returnFail("Bad RELAY state value");
   }
 }
 
@@ -108,10 +109,8 @@ void returnOK()
 {
   server.sendHeader("Connection", "close");
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  // return to the same page
+  // return to the root page
   server.send(200, "text/html", INDEX_HTML);
-  // or just return the word "OK"
-  //server.send(200, "text/plain", "OK\r\n");
 }
 
 /*
@@ -205,15 +204,18 @@ void configureWebServer(String url){
 /**
  * add the httpUpdater endpoints to the http server
  */
-void configureWebUpdate(String url){
+void configureWebUpdateIfEnabled(String url){
+#ifdef ENABLE_HTTP_UPDATE
     httpUpdater.setup(&server,update_path, update_username, update_password);
     Serial.printf("Web update enabled %s User:%s Pw:%s\r\n", url.c_str(), update_username, update_password);
+#endif
 }
 
 /**
  * Configure direct upload OTA
  */
-void enableOTA(){
+void activateOTAIfEnabled(){
+#ifdef ENABLE_OTA
     ArduinoOTA.setPassword(update_password);
     // event handlers
     ArduinoOTA.onStart([]() {
@@ -235,6 +237,7 @@ void enableOTA(){
     });
     ArduinoOTA.begin();
     Serial.println("OTA enabled");  
+#endif
 }
 
 /**
@@ -249,13 +252,9 @@ void setup()
     runWiFiManager();
     String url = "http://"+ssid+".local";
     configureWebServer(url);
-#ifdef ENABLE_HTTP_UPDATE
-    configureWebUpdate(url);
-#endif
+    configureWebUpdateIfEnabled(url);
     server.begin();
-#ifdef ENABLE_OTA
-    enableOTA();
-#endif
+    activateOTAIfEnabled();
 }
 
 
