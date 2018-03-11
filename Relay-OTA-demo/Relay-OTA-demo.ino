@@ -1,4 +1,4 @@
-  #define ENABLE_HTTP_UPDATE
+#define ENABLE_HTTP_UPDATE
 #define ENABLE_OTA
 
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
@@ -25,6 +25,7 @@ const int RELAY_PIN = 16;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
 String ssid = "ESP8266-" + String(ESP.getChipId());
+String serverUrl = "http://"+ssid+".local";
 #if defined(ENABLE_HTTP_UPDATE) || defined(ENABLE_OTA)
   // used by both the http and OTA updaters
   String password = String(ESP.getChipId());
@@ -35,7 +36,6 @@ String ssid = "ESP8266-" + String(ESP.getChipId());
   ESP8266HTTPUpdateServer  httpUpdater;
   const char* update_path = "/update";
 #endif
-
 
 const char INDEX_HTML[] =
   "<!DOCTYPE HTML>"
@@ -50,16 +50,30 @@ const char INDEX_HTML[] =
   "<body>"
   "<h1>ESP8266 LinkNode R1 Demo</h1>"
   "<FORM action=\"/\" method=\"post\">"
-  "<P>"
+  "<P>Use this form:<BR>"
   "<INPUT type=\"radio\" name=\"RELAY\" value=\"1\">Relay On<BR>"
   "<INPUT type=\"radio\" name=\"RELAY\" value=\"0\">Relay Off<BR>"
   "<INPUT type=\"submit\" value=\"Send\"> <INPUT type=\"reset\">"
   "</P>"
   "</FORM>"
-  "<br><br>Direct: <a href='/relayoff'>Relay Off</a> or <a href='/relayon'>Relay On</a>"
+  "<P>Or Click to <a href='/relayoff'>Turn Relay Off</a> or <a href='/relayon'>Turn Relay On</a></P>"
+  ;
+
+const char INDEX_HTTP_UPDATE_LINK[] =
+  ""
 #ifdef ENABLE_HTTP_UPDATE
-  "<br>Update firmware: <a href='/update'>via upload</a>"
+  "<P>Authorized users can <a href='/update'>click here</a> update firmware</P>"
 #endif
+  ;
+
+const char INDEX_BUILDINFO[] = 
+  "Software Built: "
+  __DATE__
+  " "
+  __TIME__
+  ;
+  
+const char INDEX_FOOTER[] =
   "</body>"
   "</html>";
 
@@ -109,8 +123,14 @@ void returnOK()
 {
   server.sendHeader("Connection", "close");
   server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   // return to the root page
-  server.send(200, "text/html", INDEX_HTML);
+  server.send(200, "text/html", "");
+  server.sendContent(INDEX_HTML);
+  server.sendContent(INDEX_HTTP_UPDATE_LINK);
+  server.sendContent(INDEX_BUILDINFO);
+  server.sendContent(INDEX_FOOTER);
+  server.client().stop();
 }
 
 /*
@@ -204,19 +224,19 @@ void configureWebServer(String url){
 /**
  * add the httpUpdater endpoints to the http server
  */
-void configureWebUpdateIfEnabled(String url){
+void configureWebUpdateIfEnabled(String url, const char *updatePath, const char* username, const char* password){
 #ifdef ENABLE_HTTP_UPDATE
-    httpUpdater.setup(&server,update_path, update_username, update_password);
-    Serial.printf("Web update enabled %s User:%s Pw:%s\r\n", url.c_str(), update_username, update_password);
+    httpUpdater.setup(&server,updatePath, username, password);
+    Serial.printf("Web update enabled %s User:%s Pw:%s\r\n", url.c_str(), username, password);
 #endif
 }
 
 /**
  * Configure direct upload OTA
  */
-void activateOTAIfEnabled(){
+void activateOTAIfEnabled(const char* password){
 #ifdef ENABLE_OTA
-    ArduinoOTA.setPassword(update_password);
+    ArduinoOTA.setPassword(password);
     // event handlers
     ArduinoOTA.onStart([]() {
       Serial.print("Start OTA:");
@@ -236,7 +256,8 @@ void activateOTAIfEnabled(){
       else if (error == OTA_END_ERROR) Serial.println("End Failed");
     });
     ArduinoOTA.begin();
-    Serial.println("OTA enabled");  
+    Serial.print("OTA enabled pw:");  
+    Serial.println(password);
 #endif
 }
 
@@ -246,15 +267,18 @@ void activateOTAIfEnabled(){
 void setup()
 {
     Serial.begin(115200);
+    Serial.print("BuildInfo: ");
+    Serial.print(__DATE__);
+    Serial.print(" ");
+    Serial.println(__TIME__);
     pinMode(RELAY_PIN, OUTPUT);
     writeRelay(false);
 
     runWiFiManager();
-    String url = "http://"+ssid+".local";
-    configureWebServer(url);
-    configureWebUpdateIfEnabled(url);
+    configureWebServer(serverUrl);
+    configureWebUpdateIfEnabled(serverUrl,update_path,update_username,update_password);
     server.begin();
-    activateOTAIfEnabled();
+    activateOTAIfEnabled(update_password);
 }
 
 
