@@ -44,9 +44,18 @@ After the first time on a new network
 1) Power up the LinkSprite ESP8266 device
 1) Open your browser to http://esp8266-\<chipId\>.local
 
+### Administrative Endpoints ###
+The web server adds the following administrative endpoints that require a username and password
+
+* **/reset** Reset/reboot the device.
+* **/resetwifi** Reset the wifimanager configuration and reboot into the wifi configuration portal
+* **/update** go to the web based firmware update page when this feature is enabled
+
 ### Firmware updates without Wires ###
-1) Enables Firmware update via web form on _/update_ if enabled with "#define" in program
-1) Enables Firmware Over The Air (OTA) update directly to port 8266 if enabled with "#define" in program
+There are two _#define_ macros in the code that enable network based firmware upgrades.  They are enabled by default
+
+1) Firmware update via web form on _/update_ if enabled with "#define" in program
+1) Firmware Over The Air (OTA) update directly to port 8266 if enabled with _"#define"_ in program
 
 ### Shortcomings ###
 

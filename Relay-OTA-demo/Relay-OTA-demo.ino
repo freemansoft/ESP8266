@@ -12,18 +12,22 @@
   #include <ESP8266HTTPUpdateServer.h>
 #endif
 
-/**
- * This program was put together to exercise the LinkNode R1 as a web endpoint.
- * The node brings up an AP when it does not find a network that it previously used with valid credentials.
- * You can connect to the AP with a phone/tablet or other device by selecting the AP network.
- * The program saves the credentials in NVRAM so that it can log into the host network on restart
- * 
- * You can reset the connection information by uncommenting a line documented in StartUp()
- * 
- */
+//
+//  This program was put together to exercise the LinkNode R1 as a web endpoint.
+//  The node brings up an AP when it does not find a network that it previously used with valid credentials.
+//  You can connect to the AP with a phone/tablet or other device by selecting the AP network.
+//  The program saves the credentials in NVRAM so that it can log into the host network on restart
+//  
+//  You can reset the connection information by uncommenting a line documented in StartUp()
+//  
 const int RELAY_PIN = 16;
+// this is global so that we can reset the manager if requested
+WiFiManager wifiManager;
 MDNSResponder mdns;
+// global so multiple functions can see it
 ESP8266WebServer server(80);
+// the SSID when we bring up the configuration portal
+// also our host name once we join thenetwork
 String ssid = "ESP8266-" + String(ESP.getChipId());
 String serverUrl = "http://"+ssid+".local";
 #if defined(ENABLE_HTTP_UPDATE) || defined(ENABLE_OTA)
@@ -60,16 +64,21 @@ const char INDEX_HTML[] =
   ;
 
 // string built this way so it is never an empty string
-const char INDEX_HTTP_UPDATE_LINK[] =
-  "<P>"
+const char INDEX_HTTP_ADMIN_LINKS[] =
+  "<HR>"
+  "<p>Admin username and password required</p>"
+  "<ul>"
+  "<li><a href='/reset'>Reset the device</a></li>"
+  "<li><a href='/resetwifi'>Reset wifi and restart into portal</a> Warning!! disconnects from current wifi</li>"
 #ifdef ENABLE_HTTP_UPDATE
-  "Authorized users can <a href='/update'>click here</a> update firmware"
+  "<li><a href='/update'>Update firmware via web page</a></li>"
 #endif
-  "</P>"
+  "</ul>"
   ;
 
 // should this have its own <p></p>?
 const char INDEX_BUILDINFO[] = 
+  "<HR>"
   "Software Built: "
   __DATE__
   " "
@@ -81,7 +90,9 @@ const char INDEX_FOOTER[] =
   "</body>"
   "</html>";
 
-
+//
+// a request came in on  "/"
+//
 void handleRoot()
 {
   if (server.hasArg("RELAY")) {
@@ -99,6 +110,9 @@ void returnFail(String msg)
   server.send(500, "text/plain", msg + "\r\n");
 }
 
+//
+// called if handleRoot() saw a form element
+//
 void handleSubmit()
 {
   String RELAYvalue;
@@ -120,9 +134,9 @@ void handleSubmit()
   }
 }
 
-/*
- * return 200 and the ok message in the bod
- */
+//
+// return 200 and the ok message in the body
+//
 void returnOK()
 {
   server.sendHeader("Connection", "close");
@@ -131,34 +145,35 @@ void returnOK()
   // return to the root page
   server.send(200, "text/html", "");
   server.sendContent(INDEX_HTML);
-  server.sendContent(INDEX_HTTP_UPDATE_LINK);
+  server.sendContent(INDEX_HTTP_ADMIN_LINKS);
   server.sendContent(INDEX_BUILDINFO);
   server.sendContent(INDEX_FOOTER);
   server.client().stop();
 }
 
-/*
- * Imperative to turn the RELAY on using a non-browser http client.
- * For example, using wget.
- * $ wget http://LOCAL_DNS_NAME/relayon
- */
+// Imperative to turn the RELAY on using a non-browser http client.
+// For example, using wget.
+// $ wget http://LOCAL_DNS_NAME/relayon
 void handleRelayOn()
 {
   writeRelay(true);
   returnOK();
 }
 
-/*
- * Imperative to turn the RELAY off using a non-browser http client.
- * For example, using wget.
- * $ wget http://LOCAL_DNS_NAME/relayoff
- */
+//
+// Imperative to turn the RELAY off using a non-browser http client.
+// For example, using wget.
+// $ wget http://LOCAL_DNS_NAME/relayoff
+//
 void handleRelayOff()
 {
   writeRelay(false);
   returnOK();
 }
 
+//
+// return 404 with info
+//
 void handleNotFound()
 {
   String message = "File Not Found\n\n";
@@ -175,6 +190,36 @@ void handleNotFound()
   server.send(404, "text/plain", message);
 }
 
+// force a reboot
+// reset request requires authentication
+void handleReset(){
+  if (!server.authenticate(update_username,update_password)){
+    return server.requestAuthentication();
+  }
+  server.send(200, "text/html", "<html><head></head><body>Resetting device. <a href='/'>Click here after reset<a> to return to home page</body></html>");
+  deviceReset();
+}
+
+// clear wifi passwords and reboot
+// reset request requires authentication
+void handleResetWiFi(){
+  if (!server.authenticate(update_username,update_password)){
+    return server.requestAuthentication();
+  }
+  server.send(200, "text/html", "<html><head></head><body>Resetting wifi passwords and device. Connect wifi to soft AP</body></html>");
+  wifiManager.resetSettings();
+  deviceReset();
+}
+
+// lifted from
+// https://github.com/chrislbennett/ESP8266-WemosRelay/blob/master/src/main.ino
+void deviceReset()
+{
+  delay(3000);
+  ESP.reset();
+  delay(5000);
+}
+
 void writeRelay(bool RelayOn)
 {
   if (RelayOn)
@@ -185,9 +230,6 @@ void writeRelay(bool RelayOn)
 
 void runWiFiManager(){
     // https://github.com/tzapu/WiFiManager/blob/master/examples/AutoConnect/AutoConnect.ino
-    // WiFiManager
-    // Local intialization. Once its business is done, there is no need to keep it around
-    WiFiManager wifiManager;
     // this will remove the saved wifi settings - good for development
     // can't stay active though because it will erase settings causing reboot to AP.
     //wifiManager.resetSettings();
@@ -210,14 +252,17 @@ void runWiFiManager(){
     }
 }
 
-/**
- * Prepare the web server to handle requests
- */
+//
+// Prepare the web server to handle requests
+//
 void configureWebServer(String url){
     server.on("/", handleRoot);
     server.on("/relayon", handleRelayOn);
     server.on("/relayoff", handleRelayOff);
     server.onNotFound(handleNotFound);
+    server.on("/reset", handleReset);
+    server.on("/resetwifi", handleResetWiFi);
+    
     Serial.println("Web server enabled: "+url+" or http://"+WiFi.localIP().toString()); 
     Serial.println("Relay Form: "+url+"/");
     Serial.println("GET "+url+"/relayoff");
@@ -225,9 +270,9 @@ void configureWebServer(String url){
 
 }
 
-/**
- * add the httpUpdater endpoints to the http server
- */
+//
+// add the httpUpdater endpoints to the http server
+//
 void configureWebUpdateIfEnabled(String url, const char *updatePath, const char* username, const char* password){
 #ifdef ENABLE_HTTP_UPDATE
     httpUpdater.setup(&server,updatePath, username, password);
@@ -235,9 +280,9 @@ void configureWebUpdateIfEnabled(String url, const char *updatePath, const char*
 #endif
 }
 
-/**
- * Configure direct upload OTA
- */
+//
+// Configure direct upload OTA
+//
 void activateOTAIfEnabled(const char* password){
 #ifdef ENABLE_OTA
     ArduinoOTA.setPassword(password);
@@ -265,9 +310,9 @@ void activateOTAIfEnabled(const char* password){
 #endif
 }
 
-/**
- * This call back happens when network join fails and we fall into soft AP
- */
+//
+// Configure the components.  The component setup calls are responsible forknowing if their feature is enabled
+//
 void setup()
 {
     Serial.begin(115200);
