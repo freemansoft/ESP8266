@@ -21,6 +21,8 @@
 //  You can reset the connection information by uncommenting a line documented in StartUp()
 //  
 const int RELAY_PIN = 16;
+// retain this so we can tell the UI the state.  No easy way to read the pin status in output mode
+bool relay_state = false;
 // this is global so that we can reset the manager if requested
 WiFiManager wifiManager;
 MDNSResponder mdns;
@@ -55,8 +57,8 @@ const char INDEX_HTML[] =
   "<h1>ESP8266 LinkNode R1 Demo</h1>"
   "<FORM action=\"/\" method=\"post\">"
   "<P>Use this form:<BR>"
-  "<INPUT type=\"radio\" name=\"RELAY\" value=\"1\">Relay On<BR>"
-  "<INPUT type=\"radio\" name=\"RELAY\" value=\"0\">Relay Off<BR>"
+  "<INPUT type=\"radio\" name=\"RELAY\" id='relay_radio_on' value=\"1\">Relay On<BR>"
+  "<INPUT type=\"radio\" name=\"RELAY\" id='relay_radio_off' value=\"0\">Relay Off<BR>"
   "<INPUT type=\"submit\" value=\"Send\"> <INPUT type=\"reset\">"
   "</P>"
   "</FORM>"
@@ -83,6 +85,19 @@ const char INDEX_BUILDINFO[] =
   __DATE__
   " "
   __TIME__
+  " IP: "
+  ;
+
+const char INDEX_JAVASCRIPT_RELAY_ON[] = 
+  "<script>"
+  "document.getElementById('relay_radio_on').checked = true;"
+  "</script>"
+  ;
+  
+const char INDEX_JAVASCRIPT_RELAY_OFF[] = 
+  "<script>"
+  "document.getElementById('relay_radio_off').checked = true;"
+  "</script>"
   ;
 
 // let's end this!
@@ -147,6 +162,13 @@ void returnOK()
   server.sendContent(INDEX_HTML);
   server.sendContent(INDEX_HTTP_ADMIN_LINKS);
   server.sendContent(INDEX_BUILDINFO);
+  server.sendContent(WiFi.localIP().toString());
+  // so lazy...
+  if (relay_state){
+    server.sendContent(INDEX_JAVASCRIPT_RELAY_ON);
+  } else {
+    server.sendContent(INDEX_JAVASCRIPT_RELAY_OFF);
+  }
   server.sendContent(INDEX_FOOTER);
   server.client().stop();
 }
@@ -222,10 +244,13 @@ void deviceReset()
 
 void writeRelay(bool RelayOn)
 {
-  if (RelayOn)
+  if (RelayOn){
     digitalWrite(RELAY_PIN, 1);
-  else
+    relay_state=true;
+  }else {
     digitalWrite(RELAY_PIN, 0);
+    relay_state=false;
+  }
 }
 
 void runWiFiManager(){
