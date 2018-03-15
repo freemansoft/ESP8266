@@ -1,5 +1,6 @@
 #define ENABLE_HTTP_UPDATE
 #define ENABLE_OTA
+#define INITIAL_RELAY_STATE false // This will cause the relay to flip false/true/false on startup
 
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
@@ -20,7 +21,11 @@
 //  
 //  You can reset the connection information by uncommenting a line documented in StartUp()
 //  
+
+// GPIO16 connected to the RELAY
 const int RELAY_PIN = 16;
+// ESP8266 modules have on-module LED hooped to this pin. It used to be on GPIO1 which is the TX pin
+const int GPIO2_LED_PIN = 2;
 // retain this so we can tell the UI the state.  No easy way to read the pin status in output mode
 bool relay_state = false;
 // this is global so that we can reset the manager if requested
@@ -106,7 +111,7 @@ const char INDEX_FOOTER[] =
   "</html>";
 
 //
-// a request came in on  "/"
+// a request came in on  "/" so either return page or process submit
 //
 void handleRoot()
 {
@@ -346,18 +351,30 @@ void setup()
     Serial.print(" ");
     Serial.println(__TIME__);
     pinMode(RELAY_PIN, OUTPUT);
-    writeRelay(false);
+    writeRelay(INITIAL_RELAY_STATE);
 
     runWiFiManager();
     configureWebServer(serverUrl);
     configureWebUpdateIfEnabled(serverUrl,update_path,update_username,update_password);
     server.begin();
     activateOTAIfEnabled(update_password);
+
+    pinMode(GPIO2_LED_PIN, OUTPUT);
+
 }
 
+// loop counter
+long counter = 0;
+// current output state
+int output = 0;
 
 void loop()
 { 
+    counter++;
+    // toggle pin two (onmodule LED) every 10,000 times through this loop
+    if (counter % 100000 == 0){
+      digitalWrite(GPIO2_LED_PIN, (++output % 2));
+    }
     server.handleClient();
 #ifdef ENABLE_OTA
     ArduinoOTA.handle();

@@ -22,10 +22,10 @@ ESP8266 based single relay board [found at Microcenter](http://www.microcenter.c
     * Boots into a self-configuring Access Point portal. Provides a web interface to select a network and enter the network password.  
     * Reboots after configuration and joins the configured network.
 1) Brings up internal web server on _esp8266-\<chip-id\>.local_ after joining network with the following web URLs
-    * GET: form /
+    * **/** GET: form
       * POST: to turn on/off relay on
-    * GET: /relayon
-    * GET: /relayoff
+    * **/relayon** GET: turn relay on
+    * **/relayoff** GET: turn relay off
 
 ### Usage ###
 First time on a new network.
@@ -73,9 +73,12 @@ with
 ## Hardware ##
 Built on Link Spring LinkNode Rx that emulates the WeMos D1 (retired)
 
+![An ESP8266 board](docs/LinkNodeR1.jpg?raw=true "Link Sys LinkNode R1")
+
+
+
 * ESP-87266EX
 * 5V pDC power jack
-* 1 5V DC port for power/configuration (?)
 * 1 Digital/IO Relay
 * 6 Digital I/O pins
 * 1 Analog Input pin
@@ -83,15 +86,16 @@ Built on Link Spring LinkNode Rx that emulates the WeMos D1 (retired)
 The Arduino pinout and ESP8266 pin mapping can be found in [pins_arduino.h on github](https://github.com/pcduino/LinkNodeD1/blob/master/variants/linknoded1/pins_arduino.h)
 The Arduino pin naming convention doesn't make sense in this context. It is simpler to just refer directly to the ESP8266 pin number itself. The following table shows both representations.
 
-|GPIO	 |Fcn   |Alt Fcn |Arduino pin|
-|--------|------|--------|-----------| 
-|GPIO 04 | SDA? |        |        D4 |
-|GPIO 05 | SCL? |        |        D3 |
-|GPIO 12 | HMISO|        |        D6 |
-|GPIO 13 | HMOSI| RXD2   |        D7 |
-|GPIO 14 | HSCLK|	     |        D5 |
-|GPIO 15 | HCS  | TXD2   |	      D10|
-|GPIO 16 |Relay?|        |        D2 |
+|GPIO	 |Fcn           |Alt Fcn |Arduino pin|
+|--------|--------------|--------|-----------| 
+|GPIO 04 | SDA?         |        |        D4 |
+|GPIO 05 | SCL?         |        |        D3 |
+|GPIO 12 | HMISO        |        |        D6 |
+|GPIO 13 | HMOSI        | RXD2   |        D7 |
+|GPIO 14 | HSCLK        |	     |        D5 |
+|GPIO 15 | HCS          | TXD2   |	      D10|
+|GPIO 16 |Relay         |        |        D2 |
+|GPIO 02 |LED on ESP8266|        |        ?  |
 			
 ## Programming and Updating ## 
 ### Configuring Arduino IDE ###
